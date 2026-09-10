@@ -63,7 +63,7 @@ jobs:
         run: |
           BEFORE="${{ github.event.before }}"
           if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            DIFF_CMD="git diff-tree --no-commit-id --name-only -r 4b825dc642cb6eb9a060e54bf899d69f82cf03 ${{ github.sha }}"
+            DIFF_CMD="git diff-tree --no-commit-id --name-only -r 4b825dc642cb6eb9a060e54bf8d69288fbee4904 ${{ github.sha }}"
           else
             DIFF_CMD="git diff --name-only $BEFORE ${{ github.sha }}"
           fi
