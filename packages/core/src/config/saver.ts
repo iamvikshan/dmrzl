@@ -23,8 +23,9 @@ export async function saveConfig(
   const newVars: string[] = []
 
   const addVar = (key: string, value: string | undefined) => {
-    if (value && value.trim() !== "" && !/[\r\n]/.test(value)) {
-      const newLine = `${key}="${value.trim()}"`
+    const trimmed = value?.trim()
+    if (trimmed && !/[\r\n]/.test(trimmed)) {
+      const newLine = `${key}="${trimmed}"`
       const regex = new RegExp(`^${key}=.*$`, "gm")
 
       if (regex.test(content)) {

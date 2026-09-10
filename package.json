@@ -10,7 +10,7 @@
     "build:nkrn": "bun scripts/build.ts --package nkrn",
     "build:all": "bun scripts/build.ts",
     "publish:nkrn": "bun scripts/publish.ts --package nkrn",
-    "test": "bun test --workspaces",
+    "test": "bun run --workspaces test",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt --write .",

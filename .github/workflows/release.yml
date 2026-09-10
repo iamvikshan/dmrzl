@@ -61,7 +61,13 @@ jobs:
         id: changed
         if: github.event_name == 'push'
         run: |
-          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -qE '^packages/(nkrn|core)/'; then
+          BEFORE="${{ github.event.before }}"
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            DIFF_CMD="git diff-tree --no-commit-id --name-only -r ${{ github.sha }}"
+          else
+            DIFF_CMD="git diff --name-only $BEFORE ${{ github.sha }}"
+          fi
+          if eval "$DIFF_CMD" | grep -qE '^packages/(nkrn|core)/'; then
             echo "package=nkrn" >> $GITHUB_OUTPUT
           else
             echo "package=" >> $GITHUB_OUTPUT
@@ -204,7 +210,7 @@ jobs:
           for f in ${PKG}-linux-x64 ${PKG}-linux-arm64 ${PKG}-macos-x64 ${PKG}-macos-arm64; do
             [ -f "$f" ] && tar -czf "archives/${f}.tar.gz" "$f"
           done
-          [ -f "${PKG}-windows-x64.exe" ] && zip -q archives/${PKG}-windows-x64.zip ${PKG}-windows-x64.exe
+          [ -f "${PKG}-windows-x64.exe" ] && zip -q archives/${PKG}-windows-x64.zip ${PKG}-windows-x64.exe || true
 
       - name: Update package.json version
         run: |
@@ -230,7 +236,7 @@ jobs:
         env:
           PKG: ${{ needs.prepare.outputs.package }}
         working-directory: packages/${{ needs.prepare.outputs.package }}
-        run: npm publish --provenance --access public
+        run: bunx npm publish --access public
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3.0.2

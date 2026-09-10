@@ -14,7 +14,7 @@ if [ -n "${CODESPACES:-}" ]; then
   EXPECTED_EMAIL=$(git config --local atlas.expected-email 2>/dev/null || echo "")
 
   if [ -z "$EXPECTED_NAME" ] || [ -z "$EXPECTED_EMAIL" ]; then
-    echo "❌ Error: Local expected identity not found."
+    echo "Error: Local expected identity not found."
     echo "   Please run your environment setup:"
     echo "   bash scripts/bootstrap.sh"
     exit 1
@@ -28,7 +28,7 @@ if [ -n "${CODESPACES:-}" ]; then
   EFFECTIVE_EMAIL="${GIT_AUTHOR_EMAIL:-$CURRENT_EMAIL}"
 
   if [ "$EFFECTIVE_USER" != "$EXPECTED_NAME" ] || [ "$EFFECTIVE_EMAIL" != "$EXPECTED_EMAIL" ]; then
-    echo "❌ Git identity mismatch detected in Codespaces!"
+    echo "Git identity mismatch detected in Codespaces!"
     echo "   Expected:  $EXPECTED_NAME <$EXPECTED_EMAIL>"
     echo "   Effective: $EFFECTIVE_USER <$EFFECTIVE_EMAIL>"
     if [ -n "${GIT_AUTHOR_NAME:-}" ] || [ -n "${GIT_AUTHOR_EMAIL:-}" ]; then

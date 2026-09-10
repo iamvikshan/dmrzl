@@ -119,17 +119,26 @@ function resolveLatestTag(pkg: PackageConfig): {
   tag: string
   suggested: string
 } {
+  // Use git tag -l with version sorting to find the highest stable tag.
+  // git describe can pick a lower reachable tag after merged release branches.
   const proc = Bun.spawnSync([
     "git",
-    "describe",
-    "--tags",
-    "--abbrev=0",
-    "--match",
+    "tag",
+    "-l",
     `${pkg.name}-v*`,
+    "--sort=-version:refname",
   ])
-  const tag = proc.success
-    ? proc.stdout.toString().trim()
-    : `${pkg.name}-v0.0.0`
+  const tags = proc.success
+    ? proc.stdout.toString().trim().split("\n").filter(Boolean)
+    : []
+  // Prefer the highest stable (non-prerelease) tag; fall back to highest overall
+  const stableTags = tags.filter(t => /-v\d+\.\d+\.\d+$/.test(t))
+  const tag =
+    stableTags.length > 0
+      ? stableTags[0]
+      : tags.length > 0
+        ? tags[0]
+        : `${pkg.name}-v0.0.0`
   const suggested = nextPatch(tag.replace(`${pkg.name}-`, ""))
   return { tag, suggested }
 }
@@ -236,7 +245,7 @@ function createGitHubRelease(
     "--target",
     branch,
   ]
-  const isPrerelease = /-[a-zA-Z0-9]/.test(tag.replace(`${pkg.name}-v`, ""))
+  const isPrerelease = /-/.test(tag.replace(`${pkg.name}-v`, ""))
   if (isPrerelease) {
     ghArgs.push("--prerelease")
   }

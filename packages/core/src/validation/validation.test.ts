@@ -16,9 +16,7 @@ describe("validateRequired", () => {
   })
 
   test("rejects whitespace-only with custom field name", () => {
-    // Note: validateRequired checks length, not trim — this is intentional
-    // as the caller (inquirer) handles the actual input quality
-    expect(validateRequired("   ", "Field")).toBe(true)
+    expect(validateRequired("   ", "Field")).toBe("Field is required")
   })
 
   test("uses custom field name in error", () => {

@@ -165,7 +165,7 @@ Prefix with the package name.
 cd packages/nkrn && bun test
 
 # All
-bun test --workspaces
+bun run --workspaces test
 
 # Build standalone binary
 bun run build:all

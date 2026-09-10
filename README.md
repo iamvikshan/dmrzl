@@ -50,7 +50,7 @@ bun install
 bun run check
 
 # Run tests
-bun test --workspaces
+bun run --workspaces test
 
 # Lint (oxlint, type-aware)
 bun run lint
