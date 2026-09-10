@@ -222,9 +222,15 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "packages/${PKG}/package.json"
           if ! git diff --staged --quiet; then
-            git commit -m "chore(release): ${TAG} [skip ci]"
+            git commit -m "${PKG}: release ${TAG} [skip ci]"
             git push
           fi
+
+      - name: Publish to npm
+        env:
+          PKG: ${{ needs.prepare.outputs.package }}
+        working-directory: packages/${{ needs.prepare.outputs.package }}
+        run: npm publish --provenance --access public
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3.0.2
@@ -237,7 +243,3 @@ jobs:
           files: |
             packages/${{ needs.prepare.outputs.package }}/dist/index.js
             packages/${{ needs.prepare.outputs.package }}/dist/archives/*
-
-      - name: Publish to npm
-        working-directory: packages/${{ needs.prepare.outputs.package }}
-        run: npm publish --provenance --access public

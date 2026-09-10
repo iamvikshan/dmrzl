@@ -10,7 +10,6 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@dmrzl/core": "workspace:*",
     "@dmrzl/nkrn": "workspace:*"
   },
   "devDependencies": {

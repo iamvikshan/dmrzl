@@ -23,7 +23,7 @@ export async function saveConfig(
   const newVars: string[] = []
 
   const addVar = (key: string, value: string | undefined) => {
-    if (value && value.trim() !== "") {
+    if (value && value.trim() !== "" && !/[\r\n]/.test(value)) {
       const newLine = `${key}="${value.trim()}"`
       const regex = new RegExp(`^${key}=.*$`, "gm")
 
@@ -52,7 +52,8 @@ export async function saveConfig(
   addVar("DOCKERHUB_TOKEN", answers.dockerHubToken)
   addVar("DOCKER_HUB_USERNAME", answers.dockerHubUsername)
 
-  if (newVars.length > 0 || content !== originalContent) {
+  const shouldWrite = newVars.length > 0 || content !== originalContent
+  if (shouldWrite) {
     const header =
       originalContent.length === 0
         ? "# Release Cleanup Global Configuration\n# Auto-generated - DO NOT COMMIT\n\n"
@@ -68,6 +69,10 @@ export async function saveConfig(
     const newContent = header + content + appendedVars
 
     await Bun.write(rcPath, newContent)
+  }
+
+  // Always enforce restrictive permissions on config files that may hold tokens
+  if (await file.exists()) {
     await chmod(rcPath, 0o600)
   }
 }

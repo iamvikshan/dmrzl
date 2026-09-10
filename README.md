@@ -20,6 +20,8 @@ bun run build:nkrn
 
 ### Run nkrn (interactive wizard)
 
+> **Warning:** nkrn permanently deletes releases, tags, and container images; these operations cannot be undone.
+
 ```bash
 # From source
 cd packages/nkrn && bun src/index.ts
@@ -48,7 +50,7 @@ bun install
 bun run check
 
 # Run tests
-bun test --recursive
+bun test --workspaces
 
 # Lint (oxlint, type-aware)
 bun run lint
@@ -87,7 +89,7 @@ and prompts for any missing values. Edited values are saved back to
 
 ## Releases
 
-Releases are interactive, not automated. Run the publish script:
+Local releases are interactive; CI releases are automated. Run the publish script:
 
 ```bash
 bun run publish:nkrn

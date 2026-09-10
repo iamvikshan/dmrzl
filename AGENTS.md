@@ -16,9 +16,9 @@ and terminal-native. Four characters is the sweet spot. Five is the ceiling.
 
 | Name      | Tool                 | Source        | Compressed from |
 | --------- | -------------------- | ------------- | --------------- |
-| **dmrzl** | Org / unified binary | Demerzel      | 7 → 5 chars     |
-| **nkrn**  | Release cleaner      | Anacreon      | 7 → 4 chars     |
-| **whspr** | R2 backup            | Whisper Ships | 12 → 5 chars    |
+| **dmrzl** | Org / unified binary | Demerzel      | 8 → 5 chars     |
+| **nkrn**  | Release cleaner      | Anacreon      | 8 → 4 chars     |
+| **whspr** | R2 backup            | Whisper Ships | 13 → 5 chars    |
 | **rdnt**  | Git sync             | Prime Radiant | 13 → 4 chars    |
 
 ### Rules
@@ -29,7 +29,7 @@ and terminal-native. Four characters is the sweet spot. Five is the ceiling.
    `drift` — each one describes exactly what it does. No lore knowledge required.
 3. **Keep git-standard verbs untouched.** `add`, `rm`, `status`, `clone`,
    `log` — developers already know these. Don't rename them.
-4. **Easter egg lives in the name, nowhere else.** Terminal output, help text,
+4. **Easter egg lives in the name and menu labels, nowhere else.** Terminal output, help text,
    and error messages are clean, professional, and direct.
 
 ---
@@ -165,7 +165,7 @@ Prefix with the package name.
 cd packages/nkrn && bun test
 
 # All
-bun test --recursive
+bun test --workspaces
 
 # Build standalone binary
 bun run build:all

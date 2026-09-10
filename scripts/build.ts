@@ -3,6 +3,8 @@
  * Usage: bun scripts/build.ts [--package nkrn] [--all]
  */
 
+import { mkdirSync } from "node:fs"
+
 type BuildTarget = {
   target: string
   name: string
@@ -64,7 +66,7 @@ function buildPackage(pkg: BuildPackageConfig): boolean {
 
   // Ensure dist/ exists
   const distDir = `packages/${pkg.name}/dist`
-  Bun.spawnSync(["mkdir", "-p", distDir])
+  mkdirSync(distDir, { recursive: true })
 
   // JS bundle
   const jsOk = buildJS(pkg.entry, `${distDir}/index.js`, "#!/usr/bin/env bun")
@@ -85,6 +87,11 @@ function buildMain() {
   const args = process.argv.slice(2)
   const pkgIdx = args.indexOf("--package")
   const targetPkg = pkgIdx !== -1 ? args[pkgIdx + 1] : null
+
+  if (pkgIdx !== -1 && !targetPkg) {
+    console.error("--package requires a package name")
+    process.exit(1)
+  }
 
   const packages = targetPkg
     ? [BUILD_PACKAGES[targetPkg]].filter(Boolean)

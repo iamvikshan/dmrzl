@@ -64,49 +64,44 @@ function nextPatch(current: string): string {
 }
 
 function parseVersion(tag: string): string {
-  return tag.replace(/^[a-z]+-v?/, "")
+  return tag.replace(/^[a-z]+-v?/, "").replace(/^v/, "")
 }
 
-async function prompt(message: string, fallback?: string): Promise<string> {
+function ask(message: string, fallback?: string): Promise<string> {
   const label = fallback ? `${message} (${fallback}): ` : `${message}: `
   process.stdout.write(label)
   const buf = Buffer.alloc(1024)
-  const n = await new Promise<number>(resolve => {
+  return new Promise<string>(resolve => {
     process.stdin.once("data", data => {
       Buffer.from(data).copy(buf)
-      resolve(data.length)
+      const val = buf.toString("utf8", 0, data.length).trim()
+      resolve(val === "" ? (fallback ?? "") : val)
     })
   })
-  const val = buf.toString("utf8", 0, n).trim()
-  return val || fallback || ""
 }
 
-async function confirm(message: string): Promise<boolean> {
+function confirmAction(message: string): Promise<boolean> {
   process.stdout.write(`${message} [y/N] `)
   const buf = Buffer.alloc(10)
-  const n = await new Promise<number>(resolve => {
+  return new Promise<boolean>(resolve => {
     process.stdin.once("data", data => {
       Buffer.from(data).copy(buf)
-      resolve(data.length)
+      resolve(buf.toString("utf8", 0, data.length).trim().toLowerCase() === "y")
     })
   })
-  return buf.toString("utf8", 0, n).trim().toLowerCase() === "y"
 }
 
-async function main() {
-  const args = process.argv.slice(2)
-  const pkgIdx = args.indexOf("--package")
-  const targetPkg = pkgIdx !== -1 ? args[pkgIdx + 1] ?? "nkrn" : "nkrn"
-
-  const pkg = PACKAGES[targetPkg]
-  if (!pkg)
+function resolvePackage(targetPkg: string): PackageConfig {
+  const pkg = PACKAGES[targetPkg] as PackageConfig | undefined
+  if (!pkg) {
     err(
       `Unknown package: ${targetPkg}. Available: ${Object.keys(PACKAGES).join(", ")}`,
     )
+  }
+  return pkg
+}
 
-  log(`\n  @dmrzl/${pkg.name} release publisher\n`)
-
-  // Preflight checks
+function preflight(): string {
   if (!Bun.which("gh"))
     err("GitHub CLI (gh) required. Install: https://cli.github.com/")
 
@@ -117,50 +112,51 @@ async function main() {
   if (!branch) err("Could not determine current branch")
   log(`  Branch: ${branch}`)
 
-  // Get latest tag for this package
-  const latestTag = (() => {
-    const proc = Bun.spawnSync([
-      "git",
-      "describe",
-      "--tags",
-      "--abbrev=0",
-      "--match",
-      `${pkg.name}-v*`,
-    ])
-    return proc.success ? proc.stdout.toString().trim() : `${pkg.name}-v0.0.0`
-  })()
-  const suggested = nextPatch(latestTag.replace(`${pkg.name}-`, ""))
-  log(`  Latest tag: ${latestTag}`)
-  log(`  Suggested:  ${pkg.name}-${suggested}\n`)
+  return branch
+}
 
-  // Gather release info
-  const tag = await prompt(
+function resolveLatestTag(pkg: PackageConfig): {
+  tag: string
+  suggested: string
+} {
+  const proc = Bun.spawnSync([
+    "git",
+    "describe",
+    "--tags",
+    "--abbrev=0",
+    "--match",
+    `${pkg.name}-v*`,
+  ])
+  const tag = proc.success
+    ? proc.stdout.toString().trim()
+    : `${pkg.name}-v0.0.0`
+  const suggested = nextPatch(tag.replace(`${pkg.name}-`, ""))
+  return { tag, suggested }
+}
+
+async function gatherReleaseInfo(pkg: PackageConfig, suggested: string) {
+  const tag = await ask(
     `Tag (e.g. ${pkg.name}-v1.0.4)`,
     `${pkg.name}-${suggested}`,
   )
   if (!tag) err("Tag is required")
 
   const tagPattern = new RegExp(
-    `^${pkg.name}-v\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$`,
+    `^${pkg.name}-v\\d+\\.\\d+\\.\\d+(?:-(?:0|[1-9]\\d*|[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|[A-Za-z-][0-9A-Za-z-]*))*)?$`,
   )
   if (!tagPattern.test(tag))
     err(
       `Invalid tag format '${tag}'. Expected: ${pkg.name}-vX.Y.Z or ${pkg.name}-vX.Y.Z-prerelease`,
     )
 
-  const name = await prompt("Release name", tag)
+  const name = await ask("Release name", tag)
   if (!name) err("Release name is required")
-  const notes = await prompt("Release notes (optional)", "")
+  const notes = await ask("Release notes (optional)", "")
 
-  log(`\n  Tag:     ${tag}`)
-  log(`  Name:    ${name}`)
-  log(`  Notes:   ${notes || "(none)"}`)
-  log("")
+  return { tag, name, notes }
+}
 
-  const ok = await confirm("Build, tag, and publish?")
-  if (!ok) err("Aborted.")
-
-  // Build
+function buildAndArchive(pkg: PackageConfig): void {
   log("\n  Building...")
   const buildProc = Bun.spawnSync([
     "bun",
@@ -171,7 +167,6 @@ async function main() {
   if (!buildProc.success) err(`Build failed: ${buildProc.stderr.toString()}`)
   log("  ✓ Build complete")
 
-  // Archive binaries
   log("  Archiving binaries...")
   Bun.spawnSync(["mkdir", "-p", `${pkg.distDir}/archives`])
   for (const art of pkg.artifacts) {
@@ -184,42 +179,77 @@ async function main() {
         err(`Failed to create ${zipName}: ${zipProc.stderr.toString()}`)
     } else if (!art.path.endsWith(".js")) {
       const tarName = art.path.replace("dist/", "dist/archives/") + ".tar.gz"
+      const basename = art.path.split("/").pop() ?? art.path
       const tarProc = Bun.spawnSync([
         "tar",
         "-czf",
         tarName,
         "-C",
         pkg.distDir,
-        art.path.split("/").pop()!,
+        basename,
       ])
       if (!tarProc.success)
         err(`Failed to create ${tarName}: ${tarProc.stderr.toString()}`)
     }
   }
   log("  ✓ Archives ready")
+}
 
-  // Create and push tag
-  log(`  Creating tag ${tag}...`)
-  run(["git", "tag", tag])
-  run(["git", "push", "origin", tag])
-  log(`  ✓ Tag ${tag} pushed`)
+async function commitVersionBump(
+  pkg: PackageConfig,
+  tag: string,
+): Promise<void> {
+  const version = parseVersion(tag)
+  const pkgJsonPath = `packages/${pkg.name}/package.json`
+  const raw = await Bun.file(pkgJsonPath).text()
+  const pkgJson: { version?: string } = JSON.parse(raw) as Record<
+    string,
+    unknown
+  >
+  pkgJson.version = version
+  await Bun.write(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + "\n")
+  log(`  ✓ package.json version → ${version}`)
 
-  // Create GitHub release
+  run(["git", "add", pkgJsonPath])
+  const diffProc = Bun.spawnSync(["git", "diff", "--staged", "--quiet"])
+  if (!diffProc.success) {
+    run(["git", "commit", "-m", `${pkg.name}: release ${tag} [skip ci]`])
+    run(["git", "push"])
+    log("  ✓ Version bump committed")
+  }
+}
+
+function createGitHubRelease(
+  pkg: PackageConfig,
+  tag: string,
+  name: string,
+  notes: string,
+  branch: string,
+): void {
   log("  Creating GitHub release...")
-  const ghArgs: string[] = ["release", "create", tag, "--title", name, "--target"]
-  ghArgs.push(branch)
+  const ghArgs: string[] = [
+    "release",
+    "create",
+    tag,
+    "--title",
+    name,
+    "--target",
+    branch,
+  ]
+  const isPrerelease = /-[a-zA-Z0-9]/.test(tag.replace(`${pkg.name}-v`, ""))
+  if (isPrerelease) {
+    ghArgs.push("--prerelease")
+  }
   if (notes) {
     ghArgs.push("--notes", notes)
   } else {
     ghArgs.push("--generate-notes")
   }
 
-  // Add artifacts
   for (const art of pkg.artifacts) {
     ghArgs.push(`${art.path}#${art.label}`)
   }
 
-  // Add archives
   const archiveDir = `${pkg.distDir}/archives`
   const archives = Bun.spawnSync(["ls", archiveDir])
   if (archives.success) {
@@ -231,28 +261,47 @@ async function main() {
   const gh = Bun.spawnSync(["gh", ...ghArgs])
   if (!gh.success) err(`GitHub release failed: ${gh.stderr.toString()}`)
   log(`  ✓ Release ${tag} published`)
+}
 
-  // Update package.json version
-  const version = parseVersion(tag)
-  const pkgJsonPath = `packages/${pkg.name}/package.json`
-  const pkgJson = JSON.parse(await Bun.file(pkgJsonPath).text())
-  pkgJson.version = version
-  await Bun.write(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + "\n")
-  log(`  ✓ package.json version → ${version}`)
+async function main(): Promise<void> {
+  const args = process.argv.slice(2)
+  const pkgIdx = args.indexOf("--package")
+  const targetPkg = pkgIdx !== -1 ? (args[pkgIdx + 1] ?? "nkrn") : "nkrn"
 
-  // Commit version bump
-  run(["git", "add", pkgJsonPath])
-  const diffProc = Bun.spawnSync(["git", "diff", "--staged", "--quiet"])
-  if (!diffProc.success) {
-    run(["git", "commit", "-m", `${pkg.name}: release ${tag} [skip ci]`])
-    run(["git", "push"])
-    log("  ✓ Version bump committed")
-  }
+  const pkg = resolvePackage(targetPkg)
+  log(`\n  @dmrzl/${pkg.name} release publisher\n`)
+
+  const branch = preflight()
+
+  const { tag: latestTag, suggested } = resolveLatestTag(pkg)
+  log(`  Latest tag: ${latestTag}`)
+  log(`  Suggested:  ${pkg.name}-${suggested}\n`)
+
+  const { tag, name, notes } = await gatherReleaseInfo(pkg, suggested)
+
+  log(`\n  Tag:     ${tag}`)
+  log(`  Name:    ${name}`)
+  log(`  Notes:   ${notes === "" ? "(none)" : notes}`)
+  log("")
+
+  const ok = await confirmAction("Build, tag, and publish?")
+  if (!ok) err("Aborted.")
+
+  buildAndArchive(pkg)
+
+  await commitVersionBump(pkg, tag)
+
+  log(`  Creating tag ${tag}...`)
+  run(["git", "tag", tag])
+  run(["git", "push", "origin", tag])
+  log(`  ✓ Tag ${tag} pushed`)
+
+  createGitHubRelease(pkg, tag, name, notes, branch)
 
   log(`\n  ✓ Release ${tag} complete!\n`)
 }
 
-main().catch(e => {
+main().catch((e: unknown) => {
   console.error(`Fatal: ${e instanceof Error ? e.message : String(e)}`)
   process.exit(1)
 })

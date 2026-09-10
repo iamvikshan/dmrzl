@@ -25,11 +25,11 @@ switch (tool) {
     await cleanup()
     break
   case "whspr":
-    console.log("whspr: not yet implemented")
-    break
+    console.error("whspr: not yet implemented")
+    process.exit(1)
   case "rdnt":
-    console.log("rdnt: not yet implemented")
-    break
+    console.error("rdnt: not yet implemented")
+    process.exit(1)
   default:
     console.error(`Unknown tool: ${tool}`)
     console.log("Run 'dmrzl --help' for available tools.")
