@@ -8,13 +8,14 @@
   "scripts": {
     "build": "bun scripts/build.ts",
     "build:nkrn": "bun scripts/build.ts --package nkrn",
+    "build:all": "bun scripts/build.ts",
     "publish:nkrn": "bun scripts/publish.ts --package nkrn",
-    "test": "bun test --recursive",
+    "test": "bun test --workspaces",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
-    "check": "oxlint && oxfmt --check && bun run --recursive check",
+    "check": "oxlint && oxfmt --check && bun run --workspaces check",
     "prepare": "test -d .git && husky || true",
     "bs": "mkdir -p scripts && curl -sL https://raw.githubusercontent.com/iamvikshan/.github/main/scripts/bootstrap.sh > scripts/bootstrap.sh && chmod +x scripts/bootstrap.sh && scripts/bootstrap.sh"
   },

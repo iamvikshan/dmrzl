@@ -2,7 +2,7 @@ export function validateRequired(
   input: string,
   fieldName = "Field",
 ): boolean | string {
-  return input.length > 0 || `${fieldName} is required`
+  return input.trim().length > 0 || `${fieldName} is required`
 }
 
 export function validateToken(input: string): boolean | string {

@@ -61,7 +61,7 @@ jobs:
         id: changed
         if: github.event_name == 'push'
         run: |
-          if git diff --name-only HEAD~1 HEAD | grep -qE '^packages/(nkrn|core)/'; then
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -qE '^packages/(nkrn|core)/'; then
             echo "package=nkrn" >> $GITHUB_OUTPUT
           else
             echo "package=" >> $GITHUB_OUTPUT
@@ -201,10 +201,10 @@ jobs:
           PKG="${{ needs.prepare.outputs.package }}"
           cd packages/${PKG}/dist
           mkdir -p archives
-          for f in nkrn-linux-x64 nkrn-linux-arm64 nkrn-macos-x64 nkrn-macos-arm64; do
+          for f in ${PKG}-linux-x64 ${PKG}-linux-arm64 ${PKG}-macos-x64 ${PKG}-macos-arm64; do
             [ -f "$f" ] && tar -czf "archives/${f}.tar.gz" "$f"
           done
-          [ -f "nkrn-windows-x64.exe" ] && zip -q archives/nkrn-windows-x64.zip nkrn-windows-x64.exe
+          [ -f "${PKG}-windows-x64.exe" ] && zip -q archives/${PKG}-windows-x64.zip ${PKG}-windows-x64.exe
 
       - name: Update package.json version
         run: |
@@ -235,7 +235,7 @@ jobs:
           prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
           generate_release_notes: true
           files: |
-            packages/${{ needs.prepare.outputs.package }}/dist/index.js#@dmrzl/${{ needs.prepare.outputs.package }} JS Bundle
+            packages/${{ needs.prepare.outputs.package }}/dist/index.js
             packages/${{ needs.prepare.outputs.package }}/dist/archives/*
 
       - name: Publish to npm

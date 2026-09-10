@@ -278,6 +278,12 @@ export async function deleteDockerImages(
   // Delete GitLab Registry image tags
   if (apis.gitlabRegistryApi && items.gitlab && config.docker.gitlabProject) {
     for (const version of items.gitlab) {
+      if (!version.repository_id) {
+        console.error(
+          ` Skipping GitLab tag ${version.package_name}:${version.name}: missing repository_id`,
+        )
+        continue
+      }
       try {
         const projectId = encodeURIComponent(config.docker.gitlabProject)
         await apis.gitlabRegistryApi.delete(

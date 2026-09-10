@@ -140,6 +140,14 @@ async function main() {
   )
   if (!tag) err("Tag is required")
 
+  const tagPattern = new RegExp(
+    `^${pkg.name}-v\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$`,
+  )
+  if (!tagPattern.test(tag))
+    err(
+      `Invalid tag format '${tag}'. Expected: ${pkg.name}-vX.Y.Z or ${pkg.name}-vX.Y.Z-prerelease`,
+    )
+
   const name = await prompt("Release name", tag)
   if (!name) err("Release name is required")
   const notes = await prompt("Release notes (optional)", "")
@@ -171,10 +179,12 @@ async function main() {
       const zipName = art.path
         .replace(".exe", ".zip")
         .replace("dist/", "dist/archives/")
-      Bun.spawnSync(["zip", "-q", "-j", zipName, art.path])
+      const zipProc = Bun.spawnSync(["zip", "-q", "-j", zipName, art.path])
+      if (!zipProc.success)
+        err(`Failed to create ${zipName}: ${zipProc.stderr.toString()}`)
     } else if (!art.path.endsWith(".js")) {
       const tarName = art.path.replace("dist/", "dist/archives/") + ".tar.gz"
-      Bun.spawnSync([
+      const tarProc = Bun.spawnSync([
         "tar",
         "-czf",
         tarName,
@@ -182,6 +192,8 @@ async function main() {
         pkg.distDir,
         art.path.split("/").pop()!,
       ])
+      if (!tarProc.success)
+        err(`Failed to create ${tarName}: ${tarProc.stderr.toString()}`)
     }
   }
   log("  ✓ Archives ready")
@@ -227,6 +239,15 @@ async function main() {
   pkgJson.version = version
   await Bun.write(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + "\n")
   log(`  ✓ package.json version → ${version}`)
+
+  // Commit version bump
+  run(["git", "add", pkgJsonPath])
+  const diffProc = Bun.spawnSync(["git", "diff", "--staged", "--quiet"])
+  if (!diffProc.success) {
+    run(["git", "commit", "-m", `${pkg.name}: release ${tag} [skip ci]`])
+    run(["git", "push"])
+    log("  ✓ Version bump committed")
+  }
 
   log(`\n  ✓ Release ${tag} complete!\n`)
 }
