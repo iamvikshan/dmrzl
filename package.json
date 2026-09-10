@@ -24,7 +24,7 @@
     "husky": "^9.1.7",
     "oxfmt": "^0.59.0",
     "oxlint": "^1.74.0",
-    "oxlint-tsgolint": "^7.0.2000",
+    "oxlint-tsgolint": "^7.0.2001",
     "typescript": "^7.0.2"
   }
 }
