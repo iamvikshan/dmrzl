@@ -1,8 +1,0 @@
-node_modules/
-*ignore*
-*lock*
-*.sh
-*example
-dist
-.venv
-CHANGELOG.md

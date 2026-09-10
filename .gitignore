@@ -1,6 +1,8 @@
 node_modules
 *.env
+dist/
 hooks/
 scripts/bootstrap.sh
-
-dist/
+.DS_Store
+*.log
+.atlas/

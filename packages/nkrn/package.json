@@ -1,0 +1,27 @@
+{
+  "name": "@dmrzl/nkrn",
+  "version": "1.0.3",
+  "description": "Release cleaner — sweep, burn, decay across GitHub, GitLab, registries",
+  "bin": {
+    "nkrn": "./src/index.ts"
+  },
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "bun build src/index.ts --target=node --outfile dist/index.js",
+    "build:bin": "bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/nkrn-linux-x64 && bun build src/index.ts --compile --target=bun-linux-arm64 --outfile dist/nkrn-linux-arm64 && bun build src/index.ts --compile --target=bun-darwin-x64 --outfile dist/nkrn-macos-x64 && bun build src/index.ts --compile --target=bun-darwin-arm64 --outfile dist/nkrn-macos-arm64 && bun build src/index.ts --compile --target=bun-windows-x64 --outfile dist/nkrn-windows-x64.exe",
+    "build:all": "rm -rf dist && mkdir -p dist && bun run build && bun run build:bin",
+    "test": "bun test",
+    "start": "bun src/index.ts",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dmrzl/core": "workspace:*",
+    "axios": "^1.18.1",
+    "inquirer": "14.0.2"
+  },
+  "devDependencies": {
+    "bun-types": "^1.3.14",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,25 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
-    "lib": ["ES2020"],
+    "target": "ES2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "types": ["bun-types"],
-
-    /* Path Aliasing Configuration */
-    "paths": {
-      "@api/*": ["./src/api/*"],
-      "@cli/*": ["./src/cli/*"],
-      "@core/*": ["./src/core/*"],
-      "@helpers/*": ["./src/helpers/*"],
-      "@types-app/*": ["./src/types/*"]
-    }
+    "types": ["bun-types"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist"]
 }

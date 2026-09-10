@@ -1,0 +1,13 @@
+{
+  "name": "@dmrzl/rdnt",
+  "version": "0.0.1",
+  "description": "Git sync — tide, drift, anchor, rift between GitHub and GitLab",
+  "main": "src/index.ts",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "bun-types": "^1.3.14",
+    "typescript": "^6.0.3"
+  }
+}

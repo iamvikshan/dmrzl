@@ -1,172 +1,106 @@
-# Git Release Cleanup
+# dmrzl
 
-A fast, interactive CLI tool built to selectively prune and delete releases, tags, and container
-images across GitHub, GitLab, and multiple container registries. Distributed as lightweight,
-standalone native executables powered by Bun.
+A monorepo housing CLI tools and GitHub Actions for managing releases, secrets,
+and cross-platform git sync.
 
-## Features
+## Tools
 
-- **Multi-Platform Support**: Works simultaneously across GitHub, GitLab, GHCR, GitLab Container
-  Registry, and Docker Hub.
-- **Hierarchical Context Interception**: Automatically loads smart configuration defaults from
-  global environment states (`~/.rlscleanerrc` and `~/.atlasrc`) with an on-the-fly interactive
-  review menu.
-- **Flexible Deletion Rules**: Pick what you want to remove selectively (Releases, Tags, or
-  Container Images) via standard keyboard navigation.
-- **Unified Image Management**: Combines cross-registry container imagery under an aggregated
-  two-level selection group (Images -> specific tagged versions).
-- **Safe by Default**: Explicit multi-select confirmations required prior to executing irreversible
-  API deletions.
+| Tool | Status | Description |
+|------|--------|-------------|
+| **nkrn** | Active | Release cleaner. Sweep, burn, decay across GitHub, GitLab, registries. |
+| **whspr** | Planned | R2 backup. Track, launch, retrieve, drift, scavenge. |
+| **rdnt** | Planned | Git sync. Tide, drift, anchor, rift between GitHub and GitLab. |
 
-> [!WARNING]
->
-> Use this tool with caution. Deleting releases, tags, and container images is permanent,
-> destructive, and cannot be undone.
-
----
-
-## Installation
-
-You can run the tool via direct pre-compiled binaries, use it as a standalone JavaScript bundle, or
-build it locally.
-
-### 1. Download Standalone Native Binaries
-
-Download the specific zero-dependency compiled binary for your environment from the latest
-[GitHub Release](https://github.com/iamvikshan/release-cleanup/releases).
-
-- Linux (`x64` / `ARM64`)
-- macOS (`Intel` / `Apple Silicon`)
-- Windows (`x64`)
-
-No JavaScript runtime (Node.js or Bun) is required to execute these native builds.
-
-### 2. Run the Universal JavaScript Bundle
-
-If you already have a JavaScript runtime installed, download the universal `index.js` file from the
-release assets and invoke it directly:
+## Quick Start
 
 ```bash
-bun index.js
-# or
-bun index.js
-
-```
-
-### 3. Build From Source (Development)
-
-```bash
-git clone https://github.com/iamvikshan/release-cleanup
-cd release-cleanup
 bun install
-bun run build:all
-
+bun run build:nkrn
 ```
 
----
+### Run nkrn (interactive wizard)
 
-## Configuration Hierarchy
-
-The tool reads operational secrets and repository names sequentially based on a strict order of
-precedence (from highest to lowest):
-
-1. **`~/.rlscleanerrc`** (Global dedicated cleaner configuration)
-2. **`~/.atlasrc`** (Global dev space shared bootstrap environment cache)
-3. **`.env`** (Current local working directory environment variables)
-
-### Zero-Config Review Wizard
-
-When you start the tool, it evaluates your environment layers, aggregates the settings it discovers,
-and drops you into an inline interactive dashboard:
+> **Warning:** nkrn permanently deletes releases, tags, and container images; these operations cannot be undone.
 
 ```bash
-Review configuration. Select fields to edit (Space to select, Enter to confirm all):
- ◯ GitHub Token: gith********DQvH
- ◯ GitHub Owner: iamvikshan
- ◯ GitHub Repo: release-cleanup
- ◯ GitLab Token: glpa********81s8
- ◯ GitLab Namespace: vikshan
- ◯ GitLab Repo: release-cleanup
+# From source
+cd packages/nkrn && bun src/index.ts
 
+# Via dispatcher
+cd apps/cli && bun src/index.ts nkrn
+
+# As standalone binary
+./packages/nkrn/dist/nkrn-linux-x64
 ```
 
-- **Accept Defaults**: Simply hit `Enter` to run the tool instantly with the loaded parameters.
-- **Repository Switching**: Tap `Space` to select specific fields (like `GitHub Repo` or
-  `GitLab Repo`), overwrite them for the active repository, and the tool will selectively
-  synchronize those changes directly into your `~/.rlscleanerrc` configuration file.
-- **CI Safety**: The utility automatically ignores volatile `GITHUB_TOKEN` environment layers often
-  overridden or restricted by runner shells.
-
----
-
-## Interactive Flow
-
-### Step 1: Scope Target Extraction
-
-Select exactly what types of artifacts you intend to purge from your namespaces.
+### Build all platform binaries
 
 ```bash
-? What do you want to delete?
-  Releases only
-  Tags only
-  Containers only
-❯ Releases & Tags
-  Everything Everywhere All at Once
-  ──────────────
-  Exit
-
+bun run build:nkrn
+# Outputs: packages/nkrn/dist/nkrn-{linux-x64,linux-arm64,macos-x64,macos-arm64,windows-x64.exe}
 ```
 
-### Step 2: Platform Filter
-
-Target the precise platform or infrastructure housing the artifacts.
+## Development
 
 ```bash
-? From where do you want to delete?
-❯ GitHub
-  GitLab
-  Everywhere
-  ──────────────
-  Go Back
+# Install dependencies
+bun install
 
+# Type check all packages
+bun run check
+
+# Run tests
+bun run --workspaces test
+
+# Lint (oxlint, type-aware)
+bun run lint
+
+# Format (oxfmt)
+bun run fmt
 ```
 
-### Step 3: Granular Selection & Safe Deletion
+## Project Structure
 
-A list matching the chosen parameters is rendered directly to your console. Use the arrow keys and
-`Space` to pick target items, then finalize execution with a manual verification pass.
+```
+dmrzl/
+  packages/
+    core/       @dmrzl/core   Shared config, types, validation
+    nkrn/       @dmrzl/nkrn   Release cleaner
+    whspr/      @dmrzl/whspr  R2 backup (stub)
+    rdnt/       @dmrzl/rdnt   Git sync (stub)
+  apps/
+    cli/        dmrzl         Unified dispatcher
+  scripts/
+    build.ts                  Monorepo build script
+    publish.ts                Interactive release publisher
+```
+
+## Configuration
+
+nkrn reads credentials from (highest to lowest precedence):
+
+1. `~/.rlscleanerrc` -- dedicated cleaner config
+2. `~/.atlasrc` -- shared bootstrap environment
+3. `.env` -- local working directory
+
+On first run, the tool presents an interactive review of discovered config
+and prompts for any missing values. Edited values are saved back to
+`~/.rlscleanerrc` for future runs.
+
+## Releases
+
+Local releases are interactive; CI releases are automated. Run the publish script:
 
 ```bash
-? Select GitHub releases to delete (space to select, enter to confirm):
- ◯ v1.0.0 - Production Release
- ◯ v0.9.0 - Staging Build
-
-Total releases/tags to delete: 2
-? Are you sure you want to delete the selected releases/tags? (y/N)
-
+bun run publish:nkrn
 ```
 
----
+This builds binaries, creates a git tag (`nkrn-vX.Y.Z`), pushes it, and
+creates a GitHub release with artifacts via `gh`.
 
-## Container Version Selection
+In CI, pushes to `main` that touch `packages/nkrn/` or `packages/core/`
+trigger a release workflow. Manual dispatch is also supported.
 
-For container orchestration layers, the engine relies on an automated cross-registry framework that
-identifies identical images by name:
+## License
 
-1. **Auto-Grouping**: The same image pushed to multiple disparate hubs (e.g., GHCR and Docker Hub)
-   maps into a single menu element.
-2. **Registry Filtering**: Choose the grouped element, and the tool drills down to prompt you
-   separately for targeted versions on an isolated, per-registry basis.
-3. **Safe Interception**: Confirms container deletions for the current image group completely before
-   presenting sequential image rows.
-
----
-
-## Related Projects
-
-This repository is maintained as an isolated tool to cleanly coordinate workspace maintenance
-alongside [Advanced Git Sync (gitsync)](https://github.com/iamvikshan/gitsync).
-
-Contributions are managed through explicit repository hooks. Please check out
-[CONTRIBUTING.md](https://github.com/iamvikshan/release-cleanup?tab=contributing-ov-file) for
-operational standards.
+MIT

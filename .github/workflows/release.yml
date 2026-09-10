@@ -2,70 +2,250 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths:
+      - "packages/nkrn/**"
+      - "packages/core/**"
+      - "scripts/build.ts"
   workflow_dispatch:
-
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  id-token: write
+    inputs:
+      package:
+        description: "Which package to release"
+        required: true
+        type: choice
+        options:
+          - nkrn
+      tag_override:
+        description: "Override auto-tag (e.g., nkrn-v1.0.4) — leave empty for auto-increment"
+        required: false
+        default: ""
+        type: string
+      bump_type:
+        description: "Force bump type when override is empty"
+        required: false
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: "Mark as prerelease"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  release:
-    name: Build & Semantic Release
+  prepare:
+    name: Resolve Version & Release Metadata
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      package: ${{ steps.resolve.outputs.package }}
+      new_tag: ${{ steps.resolve.outputs.new_tag }}
+      version: ${{ steps.resolve.outputs.version }}
+      is_prerelease: ${{ steps.detect.outputs.prerelease }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
 
-      - name: Setup Node, Bun, and install dependencies
-        uses: iamvikshan/.github/.github/actions/setup-node-bun@main
-
-      - name: Build standalone executables & JS bundle
+      - name: Detect which package changed
+        id: changed
+        if: github.event_name == 'push'
         run: |
-          mkdir -p dist
-          # Build universal JS bundle
-          bun build --target=node src/index.ts --outfile=dist/index.js
+          BEFORE="${{ github.event.before }}"
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            DIFF_CMD="git diff-tree --no-commit-id --name-only -r 4b825dc642cb6eb9a060e54bf8d69288fbee4904 ${{ github.sha }}"
+          else
+            DIFF_CMD="git diff --name-only $BEFORE ${{ github.sha }}"
+          fi
+          if eval "$DIFF_CMD" | grep -qE '^packages/(nkrn|core)/'; then
+            echo "package=nkrn" >> $GITHUB_OUTPUT
+          else
+            echo "package=" >> $GITHUB_OUTPUT
+          fi
 
-          # Build OS-specific binaries
-          bun build --compile --target=bun-linux-x64 src/index.ts --outfile=dist/release-cleanup-linux-x64
-          bun build --compile --target=bun-linux-arm64 src/index.ts --outfile=dist/release-cleanup-linux-arm64
-          bun build --compile --target=bun-darwin-x64 src/index.ts --outfile=dist/release-cleanup-macos-x64
-          bun build --compile --target=bun-darwin-arm64 src/index.ts --outfile=dist/release-cleanup-macos-arm64
-          bun build --compile --target=bun-windows-x64 src/index.ts --outfile=dist/release-cleanup-windows-x64.exe
-
-      - name: Semantic Release
-        id: semantic
-        uses: cycjimmy/semantic-release-action@v6
+      - name: Resolve tag from manual dispatch input
+        id: tag_override
+        if: github.event_name == 'workflow_dispatch' && inputs.tag_override != ''
         env:
-          HUSKY: 0
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          GIT_AUTHOR_NAME: ${{ github.actor }}
-          GIT_AUTHOR_EMAIL: ${{ github.actor }}@users.noreply.github.com
-          GIT_COMMITTER_NAME: ${{ github.actor }}
-          GIT_COMMITTER_EMAIL: ${{ github.actor }}@users.noreply.github.com
-
-      - name: Upload release artifacts
-        if: steps.semantic.outputs.new_release_published == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          TAG_OVERRIDE: ${{ inputs.tag_override }}
+          PACKAGE: ${{ inputs.package }}
         run: |
-          TAG="${{ steps.semantic.outputs.new_release_git_tag }}"
-          echo "Uploading binaries to release $TAG..."
+          TAG="$TAG_OVERRIDE"
+          PKG="$PACKAGE"
+          if echo "$TAG" | grep -Eq "^${PKG}-v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$"; then
+            echo "new_tag=$TAG" >> $GITHUB_OUTPUT
+            echo "version=$(echo $TAG | sed "s/^${PKG}-v\?//")" >> $GITHUB_OUTPUT
+          else
+            echo "Error: Invalid tag format '$TAG' for package '$PKG'"
+            exit 1
+          fi
 
-          gh release upload "$TAG" \
-            "dist/index.js#Universal JS Bundle (Node/Bun)" \
-            "dist/release-cleanup-linux-x64#Linux (x64)" \
-            "dist/release-cleanup-linux-arm64#Linux (ARM64)" \
-            "dist/release-cleanup-macos-x64#macOS (x64)" \
-            "dist/release-cleanup-macos-arm64#macOS (Apple Silicon)" \
-            "dist/release-cleanup-windows-x64.exe#Windows (x64)" \
-            --clobber
+      - name: Resolve tag from HEAD commit directive
+        id: tag_from_commit
+        if: steps.tag_override.outputs.new_tag == ''
+        env:
+          CHANGED_PACKAGE: ${{ steps.changed.outputs.package }}
+          INPUT_PACKAGE: ${{ inputs.package }}
+        run: |
+          PKG="${CHANGED_PACKAGE:-$INPUT_PACKAGE}"
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          TAG=$(echo "$COMMIT_MSG" | grep -oE "\[release:\s*${PKG}-v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?\]" | head -1 | sed -E 's/\[release:\s*//; s/\]//')
+          if [ -n "$TAG" ]; then
+            echo "new_tag=$TAG" >> $GITHUB_OUTPUT
+            echo "version=$(echo $TAG | sed "s/^${PKG}-v\?//")" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Auto-bump from latest tag
+        id: auto_tag
+        if: steps.tag_override.outputs.new_tag == '' && steps.tag_from_commit.outputs.new_tag == ''
+        env:
+          CHANGED_PACKAGE: ${{ steps.changed.outputs.package }}
+          INPUT_PACKAGE: ${{ inputs.package }}
+          BUMP_TYPE: ${{ inputs.bump_type }}
+        run: |
+          PKG="${CHANGED_PACKAGE:-$INPUT_PACKAGE}"
+          BUMP="${BUMP_TYPE:-patch}"
+          LATEST=$(git tag -l "${PKG}-v*" --sort=-version:refname | head -1)
+          if [ -z "$LATEST" ]; then
+            echo "new_tag=${PKG}-v0.1.0" >> $GITHUB_OUTPUT
+            echo "version=0.1.0" >> $GITHUB_OUTPUT
+          else
+            VERSION=$(echo "$LATEST" | sed "s/^${PKG}-v//")
+            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+            MINOR=$(echo "$VERSION" | cut -d. -f2)
+            PATCH=$(echo "$VERSION" | cut -d. -f3 | cut -d- -f1)
+            case "$BUMP" in
+              major) NEW_VERSION="$((MAJOR+1)).0.0" ;;
+              minor) NEW_VERSION="${MAJOR}.$((MINOR+1)).0" ;;
+              *)     NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH+1))" ;;
+            esac
+            echo "new_tag=${PKG}-v${NEW_VERSION}" >> $GITHUB_OUTPUT
+            echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Consolidate final release tag
+        id: resolve
+        env:
+          CHANGED_PACKAGE: ${{ steps.changed.outputs.package }}
+          INPUT_PACKAGE: ${{ inputs.package }}
+          TAG_OVERRIDE_NEW_TAG: ${{ steps.tag_override.outputs.new_tag }}
+          TAG_FROM_COMMIT_NEW_TAG: ${{ steps.tag_from_commit.outputs.new_tag }}
+          AUTO_TAG_NEW_TAG: ${{ steps.auto_tag.outputs.new_tag }}
+          TAG_OVERRIDE_VERSION: ${{ steps.tag_override.outputs.version }}
+          TAG_FROM_COMMIT_VERSION: ${{ steps.tag_from_commit.outputs.version }}
+          AUTO_TAG_VERSION: ${{ steps.auto_tag.outputs.version }}
+        run: |
+          PKG="${CHANGED_PACKAGE:-$INPUT_PACKAGE}"
+          TAG="${TAG_OVERRIDE_NEW_TAG:-${TAG_FROM_COMMIT_NEW_TAG:-$AUTO_TAG_NEW_TAG}}"
+          VERSION="${TAG_OVERRIDE_VERSION:-${TAG_FROM_COMMIT_VERSION:-$AUTO_TAG_VERSION}}"
+          if [ -z "$TAG" ]; then
+            echo "No tag resolved. Skipping release."
+            echo "new_tag=" >> $GITHUB_OUTPUT
+            echo "version=" >> $GITHUB_OUTPUT
+          else
+            echo "package=$PKG" >> $GITHUB_OUTPUT
+            echo "new_tag=$TAG" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Detect prerelease
+        id: detect
+        if: steps.resolve.outputs.new_tag != ''
+        env:
+          RESOLVED_NEW_TAG: ${{ steps.resolve.outputs.new_tag }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          TAG="$RESOLVED_NEW_TAG"
+          if [ "$INPUT_PRERELEASE" == "true" ] || echo "$TAG" | grep -Eq -- '-(alpha|beta|rc)'; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+  publish:
+    name: Build & Publish ${{ needs.prepare.outputs.package }}
+    needs: prepare
+    if: needs.prepare.outputs.new_tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Type check
+        run: cd packages/${{ needs.prepare.outputs.package }} && bunx tsc --noEmit
+
+      - name: Build binaries
+        run: bun scripts/build.ts --package ${{ needs.prepare.outputs.package }}
+
+      - name: Archive binaries
+        run: |
+          PKG="${{ needs.prepare.outputs.package }}"
+          cd packages/${PKG}/dist
+          mkdir -p archives
+          for f in ${PKG}-linux-x64 ${PKG}-linux-arm64 ${PKG}-macos-x64 ${PKG}-macos-arm64; do
+            [ -f "$f" ] && tar -czf "archives/${f}.tar.gz" "$f"
+          done
+          [ -f "${PKG}-windows-x64.exe" ] && zip -q archives/${PKG}-windows-x64.zip ${PKG}-windows-x64.exe || true
+
+      - name: Update package.json version
+        run: |
+          PKG="${{ needs.prepare.outputs.package }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
+          PKGJSON="packages/${PKG}/package.json"
+          jq --indent 2 --arg v "$VERSION" '.version = $v' "$PKGJSON" > "${PKGJSON}.tmp"
+          mv "${PKGJSON}.tmp" "$PKGJSON"
+
+      - name: Commit version bump
+        run: |
+          PKG="${{ needs.prepare.outputs.package }}"
+          TAG="${{ needs.prepare.outputs.new_tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "packages/${PKG}/package.json"
+          if ! git diff --staged --quiet; then
+            git commit -m "${PKG}: release ${TAG} [skip ci]"
+            git push
+          fi
+
+      - name: Publish to npm
+        env:
+          PKG: ${{ needs.prepare.outputs.package }}
+        working-directory: packages/${{ needs.prepare.outputs.package }}
+        run: bunx npm publish --provenance --access public
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3.0.2
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          tag_name: ${{ needs.prepare.outputs.new_tag }}
+          name: ${{ needs.prepare.outputs.new_tag }}
+          prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+          files: |
+            packages/${{ needs.prepare.outputs.package }}/dist/index.js
+            packages/${{ needs.prepare.outputs.package }}/dist/archives/*
