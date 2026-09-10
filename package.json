@@ -15,7 +15,8 @@
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "check": "oxlint && oxfmt --check && bun run --recursive check",
-    "prepare": "test -d .git && husky || true"
+    "prepare": "test -d .git && husky || true",
+    "bs": "mkdir -p scripts && curl -sL https://raw.githubusercontent.com/iamvikshan/.github/main/scripts/bootstrap.sh > scripts/bootstrap.sh && chmod +x scripts/bootstrap.sh && scripts/bootstrap.sh"
   },
   "devDependencies": {
     "bun-types": "^1.3.14",

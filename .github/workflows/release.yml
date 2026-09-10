@@ -122,12 +122,15 @@ jobs:
         run: |
           PKG="${{ steps.changed.outputs.package || inputs.package }}"
           TAG="${{ steps.tag_override.outputs.new_tag || steps.tag_from_commit.outputs.new_tag || steps.auto_tag.outputs.new_tag }}"
+          VERSION="${{ steps.tag_override.outputs.version || steps.tag_from_commit.outputs.version || steps.auto_tag.outputs.version }}"
           if [ -z "$TAG" ]; then
             echo "No tag resolved. Skipping release."
             echo "new_tag=" >> $GITHUB_OUTPUT
+            echo "version=" >> $GITHUB_OUTPUT
           else
             echo "package=$PKG" >> $GITHUB_OUTPUT
             echo "new_tag=$TAG" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
           fi
 
       - name: Detect prerelease
