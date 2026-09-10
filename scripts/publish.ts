@@ -64,7 +64,7 @@ function nextPatch(current: string): string {
 }
 
 function parseVersion(tag: string): string {
-  return tag.replace(/^v/, "")
+  return tag.replace(/^[a-z]+-v?/, "")
 }
 
 async function prompt(message: string, fallback?: string): Promise<string> {

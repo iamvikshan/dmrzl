@@ -70,9 +70,12 @@ jobs:
       - name: Resolve tag from manual dispatch input
         id: tag_override
         if: github.event_name == 'workflow_dispatch' && inputs.tag_override != ''
+        env:
+          TAG_OVERRIDE: ${{ inputs.tag_override }}
+          PACKAGE: ${{ inputs.package }}
         run: |
-          TAG="${{ inputs.tag_override }}"
-          PKG="${{ inputs.package }}"
+          TAG="$TAG_OVERRIDE"
+          PKG="$PACKAGE"
           if echo "$TAG" | grep -Eq "^${PKG}-v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$"; then
             echo "new_tag=$TAG" >> $GITHUB_OUTPUT
             echo "version=$(echo $TAG | sed "s/^${PKG}-v\?//")" >> $GITHUB_OUTPUT
@@ -84,8 +87,11 @@ jobs:
       - name: Resolve tag from HEAD commit directive
         id: tag_from_commit
         if: steps.tag_override.outputs.new_tag == ''
+        env:
+          CHANGED_PACKAGE: ${{ steps.changed.outputs.package }}
+          INPUT_PACKAGE: ${{ inputs.package }}
         run: |
-          PKG="${{ steps.changed.outputs.package || inputs.package }}"
+          PKG="${CHANGED_PACKAGE:-$INPUT_PACKAGE}"
           COMMIT_MSG=$(git log -1 --pretty=%B)
           TAG=$(echo "$COMMIT_MSG" | grep -oE "\[release:\s*${PKG}-v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?\]" | head -1 | sed -E 's/\[release:\s*//; s/\]//')
           if [ -n "$TAG" ]; then
@@ -96,9 +102,13 @@ jobs:
       - name: Auto-bump from latest tag
         id: auto_tag
         if: steps.tag_override.outputs.new_tag == '' && steps.tag_from_commit.outputs.new_tag == ''
+        env:
+          CHANGED_PACKAGE: ${{ steps.changed.outputs.package }}
+          INPUT_PACKAGE: ${{ inputs.package }}
+          BUMP_TYPE: ${{ inputs.bump_type }}
         run: |
-          PKG="${{ steps.changed.outputs.package || inputs.package }}"
-          BUMP="${{ inputs.bump_type || 'patch' }}"
+          PKG="${CHANGED_PACKAGE:-$INPUT_PACKAGE}"
+          BUMP="${BUMP_TYPE:-patch}"
           LATEST=$(git tag -l "${PKG}-v*" --sort=-version:refname | head -1)
           if [ -z "$LATEST" ]; then
             echo "new_tag=${PKG}-v0.1.0" >> $GITHUB_OUTPUT
@@ -119,10 +129,19 @@ jobs:
 
       - name: Consolidate final release tag
         id: resolve
+        env:
+          CHANGED_PACKAGE: ${{ steps.changed.outputs.package }}
+          INPUT_PACKAGE: ${{ inputs.package }}
+          TAG_OVERRIDE_NEW_TAG: ${{ steps.tag_override.outputs.new_tag }}
+          TAG_FROM_COMMIT_NEW_TAG: ${{ steps.tag_from_commit.outputs.new_tag }}
+          AUTO_TAG_NEW_TAG: ${{ steps.auto_tag.outputs.new_tag }}
+          TAG_OVERRIDE_VERSION: ${{ steps.tag_override.outputs.version }}
+          TAG_FROM_COMMIT_VERSION: ${{ steps.tag_from_commit.outputs.version }}
+          AUTO_TAG_VERSION: ${{ steps.auto_tag.outputs.version }}
         run: |
-          PKG="${{ steps.changed.outputs.package || inputs.package }}"
-          TAG="${{ steps.tag_override.outputs.new_tag || steps.tag_from_commit.outputs.new_tag || steps.auto_tag.outputs.new_tag }}"
-          VERSION="${{ steps.tag_override.outputs.version || steps.tag_from_commit.outputs.version || steps.auto_tag.outputs.version }}"
+          PKG="${CHANGED_PACKAGE:-$INPUT_PACKAGE}"
+          TAG="${TAG_OVERRIDE_NEW_TAG:-${TAG_FROM_COMMIT_NEW_TAG:-$AUTO_TAG_NEW_TAG}}"
+          VERSION="${TAG_OVERRIDE_VERSION:-${TAG_FROM_COMMIT_VERSION:-$AUTO_TAG_VERSION}}"
           if [ -z "$TAG" ]; then
             echo "No tag resolved. Skipping release."
             echo "new_tag=" >> $GITHUB_OUTPUT
@@ -136,9 +155,12 @@ jobs:
       - name: Detect prerelease
         id: detect
         if: steps.resolve.outputs.new_tag != ''
+        env:
+          RESOLVED_NEW_TAG: ${{ steps.resolve.outputs.new_tag }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
         run: |
-          TAG="${{ steps.resolve.outputs.new_tag }}"
-          if [ "${{ inputs.prerelease }}" == "true" ] || echo "$TAG" | grep -Eq '-(alpha|beta|rc)'; then
+          TAG="$RESOLVED_NEW_TAG"
+          if [ "$INPUT_PRERELEASE" == "true" ] || echo "$TAG" | grep -Eq -- '-(alpha|beta|rc)'; then
             echo "prerelease=true" >> $GITHUB_OUTPUT
           else
             echo "prerelease=false" >> $GITHUB_OUTPUT
@@ -219,5 +241,3 @@ jobs:
       - name: Publish to npm
         working-directory: packages/${{ needs.prepare.outputs.package }}
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

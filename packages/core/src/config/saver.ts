@@ -1,5 +1,6 @@
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { chmod } from "node:fs/promises"
 import type { PlatformNeeds } from "../types"
 
 export const DEFAULT_RC_PATH = join(homedir(), ".rlscleanerrc")
@@ -67,5 +68,6 @@ export async function saveConfig(
     const newContent = header + content + appendedVars
 
     await Bun.write(rcPath, newContent)
+    await chmod(rcPath, 0o600)
   }
 }
