@@ -9,8 +9,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "axios": "^1.18.1",
-    "inquirer": "14.0.2"
+    "axios": "^1.20.0",
+    "inquirer": "14.2.2"
   },
   "devDependencies": {
     "bun-types": "^1.4.2",
