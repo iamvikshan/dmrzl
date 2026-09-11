@@ -5,7 +5,7 @@
     "": {
       "name": "dmrzl",
       "devDependencies": {
-        "bun-types": "^1.3.14",
+        "bun-types": "^1.4.2",
         "husky": "^9.1.7",
         "oxfmt": "^0.59.0",
         "oxlint": "^1.74.0",
@@ -23,7 +23,7 @@
         "@dmrzl/nkrn": "workspace:*",
       },
       "devDependencies": {
-        "bun-types": "^1.3.14",
+        "bun-types": "^1.4.2",
         "typescript": "^7.0.2",
       },
     },
@@ -35,7 +35,7 @@
         "inquirer": "14.0.2",
       },
       "devDependencies": {
-        "bun-types": "^1.3.14",
+        "bun-types": "^1.4.2",
         "typescript": "^7.0.2",
       },
     },
@@ -51,7 +51,7 @@
         "inquirer": "14.0.2",
       },
       "devDependencies": {
-        "bun-types": "^1.3.14",
+        "bun-types": "^1.4.2",
         "typescript": "^7.0.2",
       },
     },
@@ -59,7 +59,7 @@
       "name": "@dmrzl/rdnt",
       "version": "0.0.1",
       "devDependencies": {
-        "bun-types": "^1.3.14",
+        "bun-types": "^1.4.2",
         "typescript": "^7.0.2",
       },
     },
@@ -67,7 +67,7 @@
       "name": "@dmrzl/whspr",
       "version": "0.0.1",
       "devDependencies": {
-        "bun-types": "^1.3.14",
+        "bun-types": "^1.4.2",
         "typescript": "^7.0.2",
       },
     },
@@ -249,7 +249,7 @@
 
     "axios": ["axios@1.18.1", "https://registry.npmmirror.com/axios/-/axios-1.18.1.tgz", { "dependencies": { "follow-redirects": "^1.16.0", "form-data": "^4.0.5", "https-proxy-agent": "^5.0.1", "proxy-from-env": "^2.1.0" } }, "sha512-3nTvFlvpn9Zu/RkHUqtc7/+al4UpRW5az71ap5zccp6e8RAYEzhMTecX8Dz1wWDYrPpUoB1HAQEGEAEvUr7S9g=="],
 
-    "bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+    "bun-types": ["bun-types@1.4.2", "", { "dependencies": { "@types/node": "*" } }, "sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w=="],
 
     "call-bind-apply-helpers": ["call-bind-apply-helpers@1.0.2", "https://registry.npmmirror.com/call-bind-apply-helpers/-/call-bind-apply-helpers-1.0.2.tgz", { "dependencies": { "es-errors": "^1.3.0", "function-bind": "^1.1.2" } }, "sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ=="],
 
