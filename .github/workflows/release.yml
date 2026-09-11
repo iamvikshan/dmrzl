@@ -52,7 +52,7 @@ jobs:
       is_prerelease: ${{ steps.detect.outputs.prerelease }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
@@ -183,7 +183,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
@@ -239,7 +239,7 @@ jobs:
         run: bunx npm publish --provenance --access public
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3.0.2
+        uses: softprops/action-gh-release@v3.0.3
         with:
           token: ${{ secrets.GH_TOKEN }}
           tag_name: ${{ needs.prepare.outputs.new_tag }}
