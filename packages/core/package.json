@@ -9,7 +9,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "axios": "^1.21.0",
+    "axios": "^1.21.1",
     "inquirer": "14.2.5"
   },
   "devDependencies": {
